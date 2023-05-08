@@ -1,3 +1,25 @@
+/*
+
+Instructions to run:
+--> npm install
+--> npm run dev
+
+Keyboard controls:
+1. Use key ‘m’ to toggle between scenes (i.e. between a scene of spheres and that of cylinders)
+
+2. Use key ’s’ to toggle between Gouraud and Phong shading
+   --> Gouraud shading is set as the default shader for all meshes
+
+3. Use key ‘l’ to toggle between '1 light source scenario' and '2 light sources scenario'
+
+4. The checkerboard texture (present in static/textures/checkerboard.png) has been used to perform Spherical and Cylindrical texture mapping.
+   Use key ’t’ for looping over the scenarios of 'no texture mapping', followed by 'Spherical texture mapping', followed by 'Cylindrical texture mapping'...
+
+Note: Different models have been used in addition to the spheres and cylinders for demonstrating Spherical and Cylindrical texture mapping.
+
+*/
+
+
 import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -5,9 +27,14 @@ import * as dat from 'dat.gui'
 import { Sphere } from "./sphere.js";
 import { Cylinder } from "./cylinder.js";
 
+import gouraudVertexShader from "./gouraudVertexShader.glsl.js";
+import gouraudFragmentShader from "./gouraudFragmentShader.glsl.js";
+import phongVertexShader from "./phongVertexShader.glsl.js";
+import phongFragmentShader from "./phongFragmentShader.glsl.js";
+
 // http://www.realtimerendering.com/erich/udacity/exercises/unit3_specular_demo.html
 
-
+ 
 const canvas = document.querySelector("canvas.webgl");
 
 const scene = new THREE.Scene();
@@ -21,279 +48,68 @@ const sizes = {
 
 var scene_type = 'spheres'
 
-//Lighting:
-const light1 = new THREE.PointLight( 0xffffff, 5, 100 );
-light1.position.set( -30, 35 ,30 );
-// light1.power = 10000;
-// light1.distance = 20;
-light1.castShadow = true; 
-light1.decay = 2;
-scene.add(light1)
 
-const sphereSize = 1;
-
-const pointLightHelper1 = new THREE.PointLightHelper( light1, sphereSize );
-pointLightHelper1.color = new THREE.Color(0xffffff);
-
-const lightPos1 = new THREE.Vector3(-30, 35 ,30)
-
-const diffuseColor1 = new THREE.Vector4(0.8,0.3,0.3,1.0)
-
-const ambientColor1 = new THREE.Vector4(0.8,0.3,0.3,1.0)
-
-const specularColor1 = new THREE.Vector4(1.0,0.1,0.1,1.0)
-
-const a1 = 0.5
-const b1 = 0.5
-const c1 = 4
-
-
-const light2 = new THREE.PointLight( 0xffffff, 5, 100 );
-light2.position.set( 30, 35 ,30 );
-// light2.power = 10000;
-// light2.distance = 20;
-light2.castShadow = true; 
-light2.decay = 2;
-
-const pointLightHelper2 = new THREE.PointLightHelper( light2, sphereSize );
-pointLightHelper2.color = new THREE.Color(0xffffff);
-
-const lightPos2 = new THREE.Vector3(30, 35 ,30)
-
-const diffuseColor2 = new THREE.Vector4(0.8,0.3,0.3,1.0)
-
-const ambientColor2 = new THREE.Vector4(0.8,0.3,0.3,1.0)
-
-const specularColor2 = new THREE.Vector4(1.0,1.0,1.0,1.0)
-
-const a2 = 0.0
-const b2 = 0.0
-const c2 = 4
-
-
-const ambientLight = new THREE.AmbientLight();
-ambientLight.color = new THREE.Color(0xffffff);
-ambientLight.intensity = 0.07;
-scene.add(ambientLight)
-
-
-window.requestAnimationFrame( () => 
-{
-	pointLightHelper1.update();
-  pointLightHelper2.update();
-})
-
-gui.add(light1, 'intensity', 0, 10).name("Light1 Intensity");
-gui.add(light2, 'intensity', 0, 10).name("Light2 Intensity");
-gui.add(ambientLight, 'intensity', 0, 0.5).name("Ambient Light Intensity");
-
-//Camera:
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.001, 1000);
 camera.position.x = 0;
 camera.position.y = 0;
 camera.position.z = 10;
 scene.add(camera);
 
+//Lighting:
+var PointLight1 = {
+  lightPos : new THREE.Vector3(-10, 25, 10),
+  diffuseColor : new THREE.Vector4(1.0,1.0,1.0,1.0),
+  specularColor : new THREE.Vector4(1.0,1.0,1.0,1.0),
+
+  a : 0.01,
+  b : 0.01,
+  c : 0.0009
+};
+
+var PointLight2 = {
+  lightPos : new THREE.Vector3(10, -25, 10),
+  diffuseColor : new THREE.Vector4(1.0,1.0,1.0,1.0),
+  specularColor : new THREE.Vector4(1.0,1.0,1.0,1.0),
+
+  a : 0.01,
+  b : 0.01,
+  c : 0.0009
+};
+
+var num_lights = 1
+var max_num_lights = 2
+var tex_mapping_mode = 0
+
 //creating 9 spheres:
 var spheres = []
-var sphere_props = [
-  {
-    kDiffuse : 0.9,
-  
-    kAmbient : 0.9,
-  
-    kSpecular : 0.9,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  }
-]
 
-spheres.push(new Sphere(camera, scene, 0.4, [3,-3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[0], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [0.5,-3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[1], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [-2,-3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[2], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [3,0,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[3], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [0.5,0,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[4], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [-2,0,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[5], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [3,3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[6], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [0.5,3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[7], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-spheres.push(new Sphere(camera, scene, 0.4, [-2,3,0], [2.5, 2.5, 2.5], 0xff0000, sphere_props[8], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
+spheres.push(new Sphere(camera, scene, 0.4, [3,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.2, 1.0, 15, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [0.5,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.2, 0.7, 40, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [-2,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.2, 0.01, 100, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [3,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.4, 0.5, 0.9, 15, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [0.5,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.4, 0.5, 0.7, 40, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [-2,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.4, 0.5, 0.01, 100, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [3,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.8, 0.9, 0.9, 40, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [0.5,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.6, 0.9, 0.7, 80, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+spheres.push(new Sphere(camera, scene, 0.4, [-2,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.5, 0.9, 0.01, 100, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
 
 //Creating 9 cylinders:
 var cylinders = []
-var cylinder_props = [
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  },
-  {
-    kDiffuse : 0.3,
-  
-    kAmbient : 0.2,
-  
-    kSpecular : 0.3,
-    
-    alpha : 100
-  }
-]
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,-3,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[0], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,-3,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[1], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,-3,0], [2.5, 2.5, 2.5], 0xff0000,cylinder_props[2], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,0,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[3], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,0,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[4], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,0,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[5], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,3,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[6], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,3,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[7], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
-cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,3,0], [2.5, 2.5, 2.5], 0xff0000, cylinder_props[8], lightPos1, lightPos2, diffuseColor1, diffuseColor2, ambientColor1, ambientColor2, specularColor1, specularColor2, a1, a2, b1, b2, c1, c2))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.2, 1.0, 2, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.3, 0.2, 0.7, 3, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,-3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.5, 0.2, 0.01, 4, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.5, 1.0, 4, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.3, 0.5, 0.7, 5, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,0,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.5, 0.5, 0.01, 6, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [3,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.1, 0.9, 1.0, 5, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [0.5,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.3, 0.9, 0.7, 6, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
+cylinders.push(new Cylinder(camera, scene, 0.3, 0.8, [-2,3,0], [2.5, 2.5, 2.5], [1.0,0.0,0.0,1.0], 0.5, 0.9, 0.01, 7, PointLight1, PointLight2, num_lights, max_num_lights, tex_mapping_mode))
 
 var i;
 for(i=0;i<spheres.length;i++)
 {
   scene.add(spheres[i].sphereMesh)
 }
-
-//const AxesHelper = new THREE.AxesHelper();
-//scene.add(AxesHelper);
-
 
 // Controls
 let mouseCntrl = {
@@ -359,7 +175,10 @@ document.addEventListener("keydown", event => {
       var i;
       for(i=0;i<spheres.length;i++)
       {
-        spheres[i].changeShading()
+        if(spheres[i].tex_mapping_mode == 0)
+        {
+          spheres[i].changeShading()
+        }
       }
     }
     else if(scene_type == "cylinders")
@@ -367,10 +186,223 @@ document.addEventListener("keydown", event => {
       var i;
       for(i=0;i<cylinders.length;i++)
       {
-        cylinders[i].changeShading()
+        if(cylinders[i].tex_mapping_mode == 0)
+        {
+          cylinders[i].changeShading()
+        }
       }
     }
   }
+
+  if(event.key == "l")
+  {
+    var i;
+    for(i=0;i<spheres.length;i++)
+    {
+      if(scene_type == 'spheres')
+      {
+        scene.remove(spheres[i].sphereMesh)
+      }
+
+      if(spheres[i].lightHandler.num_lights == 1)
+      {
+        spheres[i].lightHandler.num_lights = 2
+      }
+      else if(spheres[i].lightHandler.num_lights == 2)
+      {
+        spheres[i].lightHandler.num_lights = 1
+      }
+      spheres[i].createMaterials()
+      spheres[i].loadMaterial()
+
+      if(scene_type == 'spheres')
+      {
+        scene.add(spheres[i].sphereMesh)
+      }
+    }
+    
+    for(i=0;i<cylinders.length;i++)
+    {
+      if(scene_type == 'cylinders')
+      {
+        scene.remove(cylinders[i].cylinderMesh)
+      }
+
+      if(cylinders[i].lightHandler.num_lights == 1)
+      {
+        cylinders[i].lightHandler.num_lights = 2
+      }
+      else if(cylinders[i].lightHandler.num_lights == 2)
+      {
+        cylinders[i].lightHandler.num_lights = 1
+      }
+      cylinders[i].createMaterials()
+      cylinders[i].loadMaterial()
+
+      if(scene_type == 'cylinders')
+      {
+        scene.add(cylinders[i].cylinderMesh)
+      }
+    }
+  }
+
+  if(event.key == "t")
+  {
+    var i;
+    for(i=0;i<spheres.length;i++)
+    {
+      if(scene_type == 'spheres')
+      {
+        scene.remove(spheres[i].sphereMesh)
+      }
+
+      spheres[i].tex_mapping_mode = (spheres[i].tex_mapping_mode + 1)%3
+
+      if(spheres[i].tex_mapping_mode == 0)
+      {
+        spheres[i].sphereGeometry = new THREE.SphereGeometry(spheres[i].radius, 40, 40);
+        if(spheres[i].tsc)
+        {
+          spheres[i].tsc = false
+          spheres[i].shader_type = "gouraud"
+        }
+        spheres[i].ambientColor = [1.0,0.0,0.0,1.0]
+      }
+      else //Sphere settings while performing texture mapping
+      {
+        if(spheres[i].shader_type == "gouraud")
+        {
+          spheres[i].tsc = true
+          spheres[i].shader_type = "phong"
+        }
+
+        if(i==0)
+        {
+          spheres[i].sphereGeometry = new THREE.TorusKnotGeometry(0.25,0.06,400, 400);
+        }
+        if(i==1)
+        {
+          spheres[i].sphereGeometry = new THREE.SphereGeometry(spheres[i].radius, 40, 40);
+        }
+        if(i==2)
+        {
+          spheres[i].sphereGeometry = new THREE.BoxGeometry(0.6,0.6,0.6, 40, 40, 40);
+        }
+        if(i==3)
+        {
+          spheres[i].sphereGeometry = new THREE.SphereGeometry(spheres[i].radius, 40, 40);
+        }
+        if(i==4)
+        {
+          spheres[i].sphereGeometry = new THREE.TorusGeometry(0.3,0.08,400, 400);
+        }
+        if(i==5)
+        {
+          spheres[i].sphereGeometry = new THREE.SphereGeometry(spheres[i].radius, 40, 40);
+        }
+        if(i==6)
+        {
+          spheres[i].sphereGeometry = new THREE.SphereGeometry(spheres[i].radius, 40, 40);
+        }
+        if(i==7)
+        {
+          spheres[i].sphereGeometry = new THREE.BoxGeometry(0.6,0.6,0.6, 40, 40, 40);
+        }
+        if(i==8)
+        {
+          spheres[i].sphereGeometry = new THREE.TorusKnotGeometry(0.25,0.06,400, 400);
+        }
+
+        spheres[i].ambientColor = [1.0,1.0,1.0,1.0]
+      }
+
+      //console.log(spheres[i].shader_type)
+      spheres[i].createMaterials()
+      spheres[i].loadMaterial()
+
+      if(scene_type == 'spheres')
+      {
+        scene.add(spheres[i].sphereMesh)
+      }
+    }
+    
+    for(i=0;i<cylinders.length;i++)
+    {
+      if(scene_type == 'cylinders')
+      {
+        scene.remove(cylinders[i].cylinderMesh)
+      }
+
+      cylinders[i].tex_mapping_mode = (cylinders[i].tex_mapping_mode + 1)%3
+
+      if(cylinders[i].tex_mapping_mode == 0)
+      {
+        cylinders[i].cylinderGeometry = new THREE.CylinderGeometry(cylinders[i].radius, cylinders[i].radius, cylinders[i].height, 40, 40);
+        if(cylinders[i].tsc)
+        {
+          cylinders[i].tsc = false
+          cylinders[i].shader_type = "gouraud"
+        }
+        cylinders[i].ambientColor = [1.0,0.0,0.0,1.0]
+      }
+      else //Cylinder settings while performing texture mapping
+      {
+        if(cylinders[i].shader_type == "gouraud")
+        {
+          cylinders[i].tsc = true
+          cylinders[i].shader_type = "phong"
+        }
+
+        if(i==0)
+        {
+          cylinders[i].cylinderGeometry = new THREE.TorusKnotGeometry(0.25,0.06,400, 400);
+        }
+        if(i==1)
+        {
+          cylinders[i].cylinderGeometry = new THREE.CylinderGeometry(cylinders[i].radius, cylinders[i].radius, cylinders[i].height, 40, 40);
+        }
+        if(i==2)
+        {
+          cylinders[i].cylinderGeometry = new THREE.BoxGeometry(0.6,0.6,0.6, 40, 40, 40);
+        }
+        if(i==3)
+        {
+          cylinders[i].cylinderGeometry = new THREE.CylinderGeometry(cylinders[i].radius, cylinders[i].radius, cylinders[i].height, 40, 40);
+        }
+        if(i==4)
+        {
+          cylinders[i].cylinderGeometry = new THREE.TorusGeometry(0.3,0.08,400, 400);
+        }
+        if(i==5)
+        {
+          cylinders[i].cylinderGeometry = new THREE.CylinderGeometry(cylinders[i].radius, cylinders[i].radius, cylinders[i].height, 40, 40);
+        }
+        if(i==6)
+        {
+          cylinders[i].cylinderGeometry = new THREE.CylinderGeometry(cylinders[i].radius, cylinders[i].radius, cylinders[i].height, 40, 40);
+        }
+        if(i==7)
+        {
+          cylinders[i].cylinderGeometry = new THREE.BoxGeometry(0.6,0.6,0.6, 40, 40, 40);
+        }
+        if(i==8)
+        {
+          cylinders[i].cylinderGeometry = new THREE.TorusKnotGeometry(0.25,0.06,400, 400);
+        }
+
+        cylinders[i].ambientColor = [1.0,1.0,1.0,1.0]
+      }
+
+      cylinders[i].createMaterials()
+      cylinders[i].loadMaterial()
+
+      if(scene_type == 'cylinders')
+      {
+        scene.add(cylinders[i].cylinderMesh)
+      }
+    }
+  }
+
 });
 
 

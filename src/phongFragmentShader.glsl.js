@@ -8,68 +8,65 @@ struct PointLight {
     float u_c;
 };
 
+uniform int num_lights;
 uniform PointLight pointLights[2];
 uniform vec3 u_cameraPos;
-uniform float u_kDiffuse;
-uniform float u_kAmbient;
-uniform float u_kSpecular;
+uniform float u_kd;
+uniform float u_ka;
+uniform float u_ks;
 uniform float u_alpha;
 uniform vec4 u_ambientColor;
+uniform sampler2D u_texture;
+uniform int tex_mapping_mode;
 
 varying vec3 v_normal;
 varying vec3 v_position;
 varying mat4 v_viewMatrix;
+varying vec2 tex_coord;
 
-vec3 pointLightEffect(PointLight pl, vec3 unitNormal) {
+vec3 lighting(PointLight pl, vec3 unitNormal) {
 
-    // The vector from the surface to light in world space
-    vec3 revLightWorld = normalize(pl.u_lightPos - v_position);
+    vec3 rlw = normalize(pl.u_lightPos - v_position);
 
-    // The vector from the surface to light in view space
-    vec3 revLightView = (v_viewMatrix * vec4( revLightWorld, 0.0)).xyz;
+    vec3 rlv = (v_viewMatrix * vec4( rlw, 0.0)).xyz;
 
+    float dA = max(0.0, dot(rlv, unitNormal));
+    vec3 dC = vec3(u_kd * pl.u_diffuseColor.xyz * dA);
 
-    // Taking care of diffused light
-    float diffuseAmt = max(0.0, dot(revLightView, unitNormal));
-    vec3 diffuseCont = vec3(u_kDiffuse * pl.u_diffuseColor.xyz * diffuseAmt);
-
-
-    // Taking care of specular lighting
     vec3 vertToCam = normalize(u_cameraPos - v_position);
-    vec3 halfwayVectorWorld = normalize(vertToCam + revLightWorld);
-    vec3 halfwayVectorView = (v_viewMatrix * vec4( halfwayVectorWorld, 0.0)).xyz;
+    vec3 halfwayVectorWld = normalize(vertToCam + rlw);
+    vec3 halfwayVectorView = (v_viewMatrix * vec4( halfwayVectorWld, 0.0)).xyz;
     
-    float specAmt = pow(
-        max(0.0, dot(halfwayVectorView, unitNormal)),
-        u_alpha
-    );
+    float specAmt = pow(max(0.0, dot(halfwayVectorView, unitNormal)), u_alpha);
 
-    vec3 specCont = vec3(u_kSpecular * pl.u_specularColor.xyz * specAmt);
+    vec3 sC = vec3(u_ks * pl.u_specularColor.xyz * specAmt);
 
-
-    // Taking the attenuation due to distance of the light
     float dis = length(pl.u_lightPos - v_position);
     float atten = 1.0/(pl.u_a + pl.u_b * dis + pl.u_c * dis * dis);
 
+    vec3 aC = vec3(u_ka * u_ambientColor);
 
-    // Taking care of ambient lighting
-    vec3 ambientCont = vec3(u_kAmbient * u_ambientColor);
-
-
-    return (atten * (diffuseCont + specCont) + ambientCont);
+    return (atten * (dC + sC) + aC);
 }
 
 void main() {
 
-    // Interpolated normal at the surface
     vec3 unitNormal = normalize(v_normal); 
 
     vec3 res = vec3(0.0,0.0,0.0);
-    for(int i = 0; i < 2; i++) {
-        res += pointLightEffect(pointLights[i], unitNormal);
+    for(int i = 0; i < num_lights; i++) {
+        res += lighting(pointLights[i], unitNormal);
     }
 
-    gl_FragColor = vec4(res, 1.0);
-    // gl_FragColor = vec4(pointLightEffect(pointLights[1], unitNormal), 1.0);
+    vec4 textureColor = texture2D(u_texture, tex_coord);
+
+    if(tex_mapping_mode == 0) //No texture mapping
+    {
+        gl_FragColor = vec4(res, 1.0);
+    }
+    else //Either Spherical or Cylindrical texture mapping
+    {
+        gl_FragColor = vec4(textureColor.rgb * res, textureColor.a);
+    }
 }
 `;
